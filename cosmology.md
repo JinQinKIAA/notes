@@ -1,0 +1,10 @@
+# cosmology notes
+
+$$
+
+$$
+
+$$
+\abs{a}
+$$
+
