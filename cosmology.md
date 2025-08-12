@@ -1,16 +1,15 @@
 # cosmology notes
 
-
 $$
-\frac{\partial a}{\partial a} \\
-\frac{\partial a}{\partial a} \\
+\begin{aligned}
+a &= b + c \\
+&= d + e
+\end{aligned}
 $$
 
-==123==
+**123**
 
 $\int_a^b f(x)dx$
-
-H~2~O F^2^
 
 ```python
 import numpy as np
