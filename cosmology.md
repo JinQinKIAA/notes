@@ -1,10 +1,7 @@
 # cosmology notes
 
-$$
 
 $$
-
-$$
-\abs{a}
+\frac{\partial a}{\partial a}
 $$
 
