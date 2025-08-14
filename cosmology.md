@@ -1,5 +1,4 @@
 # cosmology notes
-
 $$
 \begin{aligned}
 a &= b + c \\
@@ -7,7 +6,7 @@ a &= b + c \\
 \end{aligned}
 $$
 
-**123**
+<u>**123**</u>
 
 $\int_a^b f(x)dx$
 
@@ -23,5 +22,3 @@ A[方形] --> B(圆角)
     C --> |a=2| E[结果2]
     F[竖向流程图]
 ```
-
-![image-20250812232349534](figures/image-20250812232349534.png)

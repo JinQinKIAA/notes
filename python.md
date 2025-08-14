@@ -20,9 +20,10 @@ flowchart LR
 
 ```mermaid
 pie
-title cosmol
+title cosmology 
 "DE": 71
 "DM": 27
 "Baryon": 10
 ```
 
+test
