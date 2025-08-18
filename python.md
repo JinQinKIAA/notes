@@ -267,9 +267,22 @@ python 的 interpreter 只允许一个线程运行 bytecode，因此python 的�
 
 
 
+### python中什么会被当真？你知道if判断背后的规则吗？
 
+`==` 值判断 `is` 地址判断
 
+```python
+if a:
+    print('true')
+```
 
+a 如果是内置数据类型，如果是数字，0 返回 False  ，1 返回 True
+
+a 如果是字典或者list，返回长度
+
+a 如果是自己定义的类型，python 会去找 `__len__` 和 `__bool__` 调用这两个函数；
+
+如果 `__len__`, `__bool__` 都没有，直接返回 `True` . 如果有，根据这两个函数的返回值确定最终的 True or False, 且如果两者同时存在 `__bool__` 的优先级更高
 
 
 
