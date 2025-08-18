@@ -1,5 +1,97 @@
 # Python notes
 
+## python 环境配置
+
+### vscode jupyter extension 远程连接 ubuntu 服务器， tmux 保持 jupyter 会话
+
+首先为了方便，在服务器 `.bashrc` 中写入tmux相关的命令
+
+```bash
+# tmux commands
+tmuxList(){
+  tmux ls
+}
+
+tmuxKill(){
+  tmux kill-session -t $1
+}
+
+tmuxNew(){
+  tmux new -s $1
+}
+
+tmuxAttach(){
+  tmux attach -t $1
+}
+
+tmuxDetach(){
+  tmux detach
+}
+
+tmuxKillAll(){
+  tmux kill-server
+}
+
+tmuxSource(){
+  tmux source-file ~/.tmux.conf
+}
+
+tmuxConfig(){
+  vim ~/.tmux.conf
+}
+```
+
+然后新建一个 tmux session
+
+```bash
+tmuxNew jupyter
+```
+
+在这个 session 中激活你要用的 python 环境
+
+```bash
+conda activate python_env_name
+```
+
+在这个环境下启动 jupyter 服务
+
+```bash
+jupyter notebook --no-browser --port=1314
+```
+
+有时候这个端口会被占用, 如果需要的话，可以用下面的命令查询 jupyter 进程，然后杀掉
+
+```bash
+ ps -aux | grep jupyter
+```
+
+开启jupyter服务后，将输出的代码中的地址复制下来，形如
+
+ http://localhost:8080/tree?token=xxx
+
+然后在 vscode 链接好的服务器中，打开一个你想要编辑的jupyter 文件，点击`选择内核` ,`选择其他内核`，选择`现有jupyter服务器` , 然后输入上面复制的地址，回车就好，这样即使在本地关闭了 vscode, 下次打开链接服务器后，这个jupyter notebook 文件的变量还都存在，可以说是非常方便了。
+
+也可以把上面的端口地址http://localhost:8080/复制到浏览器（用vscode 链接到服务器后就能打开），可以本地打开传统的 jupyter 界面，里面有显示正在 running 的文件，可以手动关闭。
+
+需要注意的点是，**最好在代码文件夹内开启这个jupyter 服务**，否则 import 自定义模块的时候似乎有点问题，例如，如果你的根路径是
+
+```bash
+root
+	data code fig
+```
+
+你自定义的模块写在 code 里， 但你的服务是在 root 文件夹中开启的，那么这样 import 的时候就找不到。。。，所以最好进入到 code 里，然后再开启服务，这样就完美了。。。虽然在root文件夹中开启应该也有办法设置路径，但我偷懒，就不去研究了
+
+另外的问题是这个可以恢复的kernel **有时候matplotlib 画的图会不显示**，这时候需要重新运行一遍
+
+```python
+%matplotlib inline
+```
+
+就好用了，非常玄学。。。
+
+另外就是，要连接的服务器用有线，把wifi关了，不知道为什么 wifi 的优先级比有线高，连不上。。。
+
 ##  [不基础的 python 基础](https://www.bilibili.com/video/BV1ju411z7Sy?spm_id_from=333.788.videopod.sections&vd_source=257787b7f6ab2e896a4e167bf581bf17)
 
 ### 字节码和虚拟机？python代码竟然是这么执行的！
