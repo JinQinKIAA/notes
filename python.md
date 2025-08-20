@@ -261,9 +261,314 @@ python 的 interpreter 只允许一个线程运行 bytecode，因此python 的�
 
 ### 描述器
 
+#### 定义
+
 `__get__,__set__,__delete__` 定义任何一个的类都会自动变成 descriptor
 
-如果 `__get__(), __set__()` 都有， 优先使用 descriptor，如果不是，去自己的`__dict__()` 里面找，如果找不到，最后再尝试 `__get__()` , 如果 `__get__()` 未定义，则原样返回.
+#### 触发时机
+
+`__get__,__set__,__delete__`  分别在取类属性（`.` 运算符），赋值（`=`）， 删除（`del`） 时触发
+
+描述器在作为其他类的类属性时才会被触发, 例如下面这段代码会打印一个 Name() 对象，因为描述器是在`__init__` 内定义的一个属性，即对象属性，存在于`o.__dict__` 中，而不是 class A 的类属性(即不存在于 `A.__dict__`） 中
+
+```python
+class Name:
+    def __get__(self, obj, objtype):
+        return "Peter"
+
+class A:
+    def __init__(self) -> None:
+        self.name = Name()  
+
+o = A()
+print(o.name)
+```
+
+要想触发，只需改成:
+
+```python
+class Name:
+    def __get__(self, obj, objtype):
+        return "Peter"
+
+class A:
+    name = Name()  
+
+o = A()
+print(o.name)
+```
+
+#### 触发优先级
+
+如果 `__get__(), __set__()` 同时存在， 优先使用 descriptor，如果只有`__get__`，则去实例的`__dict__()` 里面找，如果找不到，再回来尝试 `__get__()` , 如果 `__get__()` 未定义，则原样返回 self:
+
+[python - python 属性的 get 和 set order 是什么？- 堆栈溢出 --- class - What is the python attribute get and set order? - Stack Overflow](https://stackoverflow.com/questions/30961069/what-is-the-python-attribute-get-and-set-order)
+
+![https://stackoverflow.com/questions/30961069/what-is-the-python-attribute-get-and-set-order](figures/zvpkp.png)
+
+总之描述符还是蛮复杂的。。。了解就好
+
+### 装饰器超详细教学，用尽毕生所学给你解释清楚，以后再也不迷茫了！
+
+本质上是语法糖, 可以看做输入和输出都是函数的函数（尽管输入一定是函数，输出不一定），广义上来说，不一定是函数，只要是 callable 就可以, 因此定义了 `__call__` 的类也可以作为装饰器.
+
+不带参数的装饰器等价于 `func = dec(func)`,  带参数的装饰器等价于 `func = dec(param)(func)`：
+
+```python
+import time
+
+
+# 等价于 func = timeit(func)
+def timeit(func):
+    def inner(*args,**kwargs):
+        start = time.time()
+        ret = func(*args,**kwargs)
+        end = time.time()
+        print(f'time: {end-start}')
+        return ret
+    return inner
+
+# 带参数的装饰器，等价于 func = timeit_param(n)(func)
+def timeit_param(n):
+    def middle(func):
+        def inner(*args,**kwargs):
+            start = time.time()
+            for _ in range(n):
+                ret = func(*args,**kwargs)
+            end = time.time()
+            print(f'10 time: {end-start}')
+            return ret
+        return inner
+    return middle
+
+@timeit
+def add(a,b):
+    time.sleep(2)
+    return a+b
+
+@timeit_param(10)
+def add(a,b):
+    time.sleep(0.1)
+    return a+b
+```
+
+### 一个公式解决所有复杂的装饰器，理解了它以后任何装饰器都易如反掌！
+
+```python
+# 装饰器类
+#公式: func = Timer(func)
+class Timer:
+    def __init__(self, func):
+        self.func = func
+    def __call__(self, *args, **kwargs):
+            start = time.time()
+            ret = self.func(*args,**kwargs)
+            end = time.time()
+            print(f'time: {end-start}')
+            return ret
+
+@Timer
+def add_class(a,b):
+    time.sleep(2)
+    return a+b
+
+add_class(1,2) 
+
+#公式: func = Timer(prefix)(func)
+class TimerPrefix:
+    def __init__(self, prefix):
+        self.prefix = prefix
+    def __call__(self, func):
+        def inner(*args,**kwargs):
+            start = time.time()
+            ret = func(*args,**kwargs)
+            end = time.time()
+            print(f'{self.prefix} time: {end-start}')
+            return ret
+        return inner
+
+@TimerPrefix('hello')
+def add_class(a,b):
+    time.sleep(2)
+    return a+b
+
+add_class(1,2) 
+```
+
+
+
+```python
+# 装饰类的装饰器 class = dec(class), 例如可以对类的魔术方法修改，实现print 打印class 成员函数的功能
+def dec(cls):
+    def __str__(self):
+        return str(self.__dict__)
+    cls.__str__ = __str__
+    return cls
+
+@dec
+class MyClass:
+    def __init__(self,a,b):
+        self.a = a 
+        self.b = b 
+    
+
+my_class = MyClass(1,2)
+print(my_class)
+
+# class = dec(param)(class)
+def dec_param(param):
+    def inner(cls):
+        def __str__(self):
+            return param+str(self.__dict__)
+        cls.__str__=__str__
+        return cls
+    return inner
+
+
+@dec_param('hello')
+class MyClassParam:
+    def __init__(self,a,b):
+        self.a = a 
+        self.b = b 
+    
+my_class_param = MyClassParam(1,2)
+print(my_class_param)
+```
+
+### 如何在class内部定义一个装饰器？这里的坑你要么不知道，要么不会填！
+
+`@classmethod` 将装饰器转换成类方法，但是这样装饰器函数的第一个参数必须是 `class`
+
+当仅需要把一些装饰器封装到一个类中的时候，`@staticmethod` 是一个很好的方法, 例如
+
+```python
+class Decorators:
+    @staticmethod
+    def dec1(func):
+        return func
+    
+    @staticmethod
+    def dec2(func):
+        return func
+```
+
+如果想用类内装饰器装饰类内的其他函数，可以直接定义一个不是类方法，即**没有 self 参数的辅助函数`dec`**作为装饰器，但是如果你还想在类外，通过对象调用这个不是类方法的函数，可以在类内的最后，加上一句`dec = staticmethod(dec)`
+
+```python
+class Decorators:
+    def dec(func):
+        return func
+    
+    @dec
+    def method1(a,b):
+        return a+b
+    
+    dec = staticmethod(dec) 
+```
+
+本质和 @staticmethod 加在 dec 前面是一样的，但是允许在dec 定义之后才把dec转变为静态方法，而用装饰器定义 @staticmethod 只能在dec定义的时候装饰dec，如果这样，dec就无法装饰这里的 method1 了（报错 staticmethod is not callable）。不过这个报错只存在于 3.9 之前，于是 `python 3.10` 之后可以直接用
+
+```python
+class Decorators:
+    @staticmethod
+    def dec(func):
+        return func
+    
+    @dec
+    def method1(a,b):
+        return a+b
+```
+
+这样 dec 在类内可以装饰类内的函数，同时可以通过 `@Decorators.dec`, 或者 `d = Decorators, @d.dec` 去装饰类外的函数
+
+### 对迭代器一知半解？看完这个视频就会了。涉及的每个概念，都给你讲清楚！
+
+包含了 `__next__` 和 `__iter__` 方法的对象就是迭代器，`__iter__` 一般返回迭代器自身。`__next__` 用于获取下一个迭代器，直到容器内的所有数据被迭代完，`raise` 一个 `StopIteration` 异常
+
+### 生成器是什么？怎么用？能干啥？一期视频解决你所有疑问！
+
+有 `yield` 的函数为生成器函数，生成器函数**返回生成器对象**，而**不是这个函数的返回值**。。。生成器函数的 return 不管返回什么，都等价于 `raise` 一个 `StopIteration` 异常。生成器函数不写 `return` 和 `return None` 是一样的
+
+
+
+从使用者的角度，生成器和迭代器没有区别，使用方法几乎一样
+
+从原理来看，迭代器把状态储存到迭代器对象中，生成器把状态保存在`frame` 中, 状态是函数运行到哪一步了，
+
+通常生成器会比迭代器简洁
+
+生成器的高级用法 send
+
+```python
+def gen(num):
+    while num > 0:
+        tmp = yield num
+        if tmp is not None:
+            print(tmp)
+            num = tmp
+        num-=1
+
+g = gen(5)
+first = next(g) # 等价于 first = g.send(None)
+
+print(f'first: {first}')
+print(f'send: {g.send(10)}') # 相当于把 tmp 赋值为 10，然后继续运行到下一次yield，输出9 
+
+for i in g:
+    print(i)
+```
+
+```none
+first: 5
+10
+send: 9
+8
+7
+6
+5
+4
+3
+2
+1
+```
+
+send 函数提供一个机制，可以去和生成器交流，改变生成器的状态
+
+### 闭包的实现机制。嵌套函数怎么共享变量的？
+
+闭包即从一个函数去读取另外一个函数的变量的机制
+
+会建立 `cell object` 闭包变量存储在这个对象中，而函数对象引用了这个 cell object, 可以通过 `__closure__` 查看
+
+```python
+def f():
+    data = []
+
+    def inner(value):
+        data.append(value)
+        return data
+    
+    return inner
+
+g = f()
+print(g.__closure__)
+print(g(1))
+print(g(2))
+print(hex(id(g(3))))
+```
+
+```
+(<cell at 0x0000026FF0DCD870: list object at 0x0000026FF141C9C0>,)
+[1]
+[1, 2]
+0x26ff141c9c0
+```
+
+可以看到，data 存活在g的引用下
+
+对于函数g 来说，data 就是一个全局变量， f 的作用就是建立了一个小的“全局”作用域，即使f 已经不存在，闭包变量还可以活在 函数对象的引用中。。。
+
+
 
 
 
@@ -283,6 +588,46 @@ a 如果是字典或者list，返回长度
 a 如果是自己定义的类型，python 会去找 `__len__` 和 `__bool__` 调用这两个函数；
 
 如果 `__len__`, `__bool__` 都没有，直接返回 `True` . 如果有，根据这两个函数的返回值确定最终的 True or False, 且如果两者同时存在 `__bool__` 的优先级更高
+
+
+
+### 你知道定义class背后的机制和原理嘛？当你定义class的时候，python实际运行了什么呢？
+
+建立class 的时候，相当于
+
+1. 运行一遍class 内部的代码
+2. 将产生的所有局部变量的值都保存到 class 的 `.__dict__`  中
+3. 建立一个 type, 赋值给 class 的名字的变量
+
+```python
+def f(self):
+    print(1)
+
+d = {
+    'name' : 'AAA',
+    'f' : f
+}
+
+A = type('A',(),d)
+
+print(A.__dict__)
+
+a = A()
+```
+
+
+
+
+
+
+
+
+
+### metaclass理解加入门，看完就知道什么是元类了。
+
+复杂。。。暂时用不到
+
+
 
 
 
